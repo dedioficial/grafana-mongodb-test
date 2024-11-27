@@ -1,0 +1,60 @@
+services:
+  node-api:
+    build:
+      context: ./node-api
+    container_name: node-api
+    ports:
+      - "3001:3001"
+    networks:
+      - app-network
+      - mongodb_network
+    depends_on:
+      - mongodb
+    volumes:
+      - ./node-api:/usr/src
+    working_dir: /usr/src
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    depends_on:
+      - node-api
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+  mongodb:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    container_name: mongodb
+    environment:
+      - MONGODB_INITDB_ROOT_USERNAME=admin
+      - MONGODB_INITDB_ROOT_PASSWORD=password123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo/init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - mongodb_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge
+  mongodb_network:
+    name: mongodb_network
+
+volumes:
+  grafana-storage:
+  mongodb_data:
+    name: mongodb_data
